@@ -265,7 +265,7 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (currentMenu) {
       case 'dashboard':
-        if (currentSubMenu === 'overview') return <Dashboard movements={movements} inventory={inventory} />;
+        if (currentSubMenu === 'overview') return <Dashboard movements={movements} inventory={inventory} products={products} tasks={tasks} warehouses={warehouses} />;
         if (currentSubMenu === 'alerts') return <GenericList data={alertInventory} columns={inventoryColumns} title="تنبيهات المخزون (منخفض)" searchKeys={['productName', 'sku']} />;
         if (currentSubMenu === 'pending') return <GenericList data={tasks} columns={taskColumns} title="المهام المعلقة" searchKeys={['title']} onAdd={handleAddTask} />;
         break;
