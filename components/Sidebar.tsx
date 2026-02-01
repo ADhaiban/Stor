@@ -165,8 +165,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentMenu, currentSubMenu, onNaviga
           <Warehouse size={22} className="text-white" />
         </div>
         <div>
-          <h1 className="font-bold text-base text-white tracking-tight">نظام Nexus</h1>
-          <p className="text-[10px] text-blue-400 font-medium uppercase tracking-wider">نسخة المؤسسات 2.0</p>
+          <h1 className="font-bold text-base text-white tracking-tight">توصيل ون</h1>
+          <p className="text-[10px] text-blue-400 font-medium uppercase tracking-wider">نظام إدارة المخزون</p>
         </div>
       </div>
 

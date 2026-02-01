@@ -297,7 +297,7 @@ const App: React.FC = () => {
         {/* Header */}
         <header className="flex justify-between items-center mb-8">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900 capitalize">Nexus WMS</h2>
+            <h2 className="text-2xl font-bold text-slate-900 capitalize">نظام ادارة المخزون شركة توصيل ون</h2>
             <p className="text-slate-500">{currentMenu} / {currentSubMenu}</p>
           </div>
           <div className="flex gap-4">
