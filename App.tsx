@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { dataService } from './services/api';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import InboundModal from './components/InboundModal';
@@ -10,17 +11,8 @@ import GenericList, { Column } from './components/GenericList';
 import { MainMenu, StockMovement, MovementType, InventoryStock, Warehouse, Department, Product, ProductCategory, UnitOfMeasure, Task, ProductType } from './types';
 import { Download, Upload } from 'lucide-react';
 
-// Keys for LocalStorage
-const STORAGE_KEYS = {
-  INVENTORY: 'nexus_inventory',
-  MOVEMENTS: 'nexus_movements',
-  PRODUCTS: 'nexus_products',
-  WAREHOUSES: 'nexus_warehouses',
-  DEPARTMENTS: 'nexus_departments',
-  CATEGORIES: 'nexus_categories',
-  UOM: 'nexus_uom',
-  TASKS: 'nexus_tasks'
-};
+
+// LocalStorage keys removed in favor of Supabase
 
 const App: React.FC = () => {
   const [currentMenu, setCurrentMenu] = useState<MainMenu>('dashboard');
@@ -48,38 +40,34 @@ const App: React.FC = () => {
   const [showDeptModal, setShowDeptModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
 
-  // Load from LocalStorage on mount
+  // Load Data from Supabase
   useEffect(() => {
-    const loadData = (key: string, setter: React.Dispatch<React.SetStateAction<any[]>>) => {
-      const saved = localStorage.getItem(key);
-      if (saved) {
-        try {
-          setter(JSON.parse(saved));
-        } catch (e) {
-          console.error(`Failed to parse ${key}`, e);
-        }
+    const fetchData = async () => {
+      try {
+        const [invData, movData, prodData, whData, deptData, venData, clientData] = await Promise.all([
+          dataService.getInventory(),
+          dataService.getMovements(),
+          dataService.getProducts(),
+          dataService.getWarehouses(),
+          dataService.getDepartments(),
+          dataService.getVendors(),
+          dataService.getClients()
+        ]);
+
+        setInventory(invData);
+        setMovements(movData);
+        setProducts(prodData);
+        setWarehouses(whData);
+        setDepartments(deptData);
+        // Vendors/Clients state not yet fully integrated in UI but loaded
+      } catch (error) {
+        console.error("Error loading data:", error);
       }
     };
-
-    loadData(STORAGE_KEYS.INVENTORY, setInventory);
-    loadData(STORAGE_KEYS.MOVEMENTS, setMovements);
-    loadData(STORAGE_KEYS.PRODUCTS, setProducts);
-    loadData(STORAGE_KEYS.WAREHOUSES, setWarehouses);
-    loadData(STORAGE_KEYS.DEPARTMENTS, setDepartments);
-    loadData(STORAGE_KEYS.CATEGORIES, setCategories);
-    loadData(STORAGE_KEYS.UOM, setUoms);
-    loadData(STORAGE_KEYS.TASKS, setTasks);
+    fetchData();
   }, []);
 
-  // Save to LocalStorage on change
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(inventory)); }, [inventory]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.MOVEMENTS, JSON.stringify(movements)); }, [movements]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products)); }, [products]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.WAREHOUSES, JSON.stringify(warehouses)); }, [warehouses]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(departments)); }, [departments]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories)); }, [categories]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.UOM, JSON.stringify(uoms)); }, [uoms]);
-  useEffect(() => { localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks)); }, [tasks]);
+  // Removed localStorage savers
 
   const handleNavigation = (menu: MainMenu, subMenu: string | null) => {
     setCurrentMenu(menu);
@@ -91,9 +79,9 @@ const App: React.FC = () => {
     if (menu === 'internal_req' && subMenu === 'new_req') setShowInternalReq(true);
   };
 
-  // --- Handlers for Adding Data ---
+  // --- Handlers for Adding Data (Updated for DB) ---
 
-  // 1. Categories
+  // 1. Categories (Still Mocked as UI-only for now or needs table)
   const handleAddCategory = () => setShowCategoryModal(true);
   const handleCategorySubmit = (data: Record<string, string>) => {
     setCategories(prev => [...prev, { id: `cat-${Date.now()}`, name: data.name }]);
@@ -109,14 +97,25 @@ const App: React.FC = () => {
 
   // 3. Warehouses
   const handleAddWarehouse = () => setShowWarehouseModal(true);
-  const handleWarehouseSubmit = (data: Record<string, string>) => {
-    setWarehouses(prev => [...prev, { id: `wh-${Date.now()}`, name: data.name, location: data.location, isActive: true }]);
-    setShowWarehouseModal(false);
+  const handleWarehouseSubmit = async (data: Record<string, string>) => {
+    try {
+      const newWh = await dataService.createWarehouse({
+        name: data.name,
+        location_address: data.location || data.location_address, // Map fields
+        is_active: true
+      } as any);
+      setWarehouses(prev => [...prev, newWh]);
+      setShowWarehouseModal(false);
+    } catch (e) {
+      console.error("Error creating warehouse", e);
+      alert("Error saving warehouse. Check console.");
+    }
   };
 
   // 4. Departments
   const handleAddDepartment = () => setShowDeptModal(true);
   const handleDeptSubmit = (data: Record<string, string>) => {
+    // TODO: Implement createDepartment in dataService
     setDepartments(prev => [...prev, { id: `dept-${Date.now()}`, name: data.name, costCenterCode: data.costCenter, budgetCap: 0 }]);
     setShowDeptModal(false);
   };
@@ -136,9 +135,26 @@ const App: React.FC = () => {
 
   // 6. Products
   const handleAddProduct = () => setShowProductModal(true);
-  const handleProductSubmit = (productData: Omit<Product, 'id'>) => {
-    setProducts(prev => [...prev, { ...productData, id: `prod-${Date.now()}` }]);
-    setShowProductModal(false);
+  const handleProductSubmit = async (productData: Omit<Product, 'id'>) => {
+    try {
+      // Map frontend fields (camelCase) to DB fields (snake_case) or rely on direct mapping if types align
+      // Note: ProductModal might need adjustment to return proper DB structure
+      const newProd = await dataService.createProduct({
+        ...productData,
+        sku: productData.sku,
+        name: productData.name,
+        description: productData.description || '',
+        type: productData.type || ProductType.RESALE,
+        min_reorder_level: productData.minReorderLevel || 10,
+        current_wac_cost: productData.currentAvgCost || 0
+      } as any);
+
+      setProducts(prev => [...prev, newProd]);
+      setShowProductModal(false);
+    } catch (e) {
+      console.error("Error creating product", e);
+      alert("Error saving product.");
+    }
   };
 
   // --- Column Definitions ---
@@ -181,81 +197,85 @@ const App: React.FC = () => {
   });
 
   // Transaction Handlers
-  const handleInboundSubmit = (data: any) => {
-    const prod = products.find(p => p.id === data.selectedProduct);
+  // Transaction Handlers
+  const handleInboundSubmit = async (data: any) => {
+    try {
+      const prod = products.find(p => p.id === data.selectedProduct);
 
-    const newMovement: StockMovement = {
-      id: `mov-${Date.now()}`,
-      date: new Date().toISOString(),
-      type: MovementType.IN,
-      productId: data.selectedProduct,
-      productName: prod?.name || 'Unknown',
-      quantity: data.quantity,
-      referenceDocId: data.poNumber,
-      user: 'Admin',
-      warehouseToId: data.selectedWarehouse
-    };
+      const newMovement = {
+        date: new Date().toISOString(),
+        type: MovementType.IN,
+        product_id: data.selectedProduct,
+        product_name: prod?.name || 'Unknown',
+        quantity: Number(data.quantity),
+        reference_doc_id: data.poNumber,
+        warehouse_to_id: data.selectedWarehouse,
+        unit_cost: 0 // Default for now
+      };
 
-    setInventory(prev => {
-      // البحث عن نفس المنتج في نفس المستودع
-      const idx = prev.findIndex(i =>
-        i.productId === data.selectedProduct &&
-        i.warehouseId === data.selectedWarehouse
-      );
+      const inventoryItem = {
+        warehouse_id: data.selectedWarehouse,
+        product_id: data.selectedProduct,
+        quantity: Number(data.quantity),
+        // Optional fields if creating new
+        product_name: prod?.name,
+        sku: prod?.sku,
+        bin_code: 'GEN', // Default bin
+        location_id: (await dataService.getWarehouses()).find(w => w.id === data.selectedWarehouse)?.id // Simplify or fetch location
+      };
 
-      if (idx >= 0) {
-        // تحديث الكمية للصنف الموجود
-        const updated = [...prev];
-        updated[idx] = {
-          ...updated[idx],
-          quantityOnHand: updated[idx].quantityOnHand + data.quantity
-        };
-        return updated;
-      }
+      await dataService.createInboundMovement(newMovement, [inventoryItem]);
 
-      // إضافة صنف جديد في المستودع
-      return [...prev, {
-        id: `stk-${Date.now()}`,
-        warehouseId: data.selectedWarehouse,
-        locationId: 'GEN',
-        productId: data.selectedProduct,
-        productName: prod?.name || 'Unknown',
-        productType: prod?.type || ProductType.RESALE,
-        sku: prod?.sku || '',
-        quantityOnHand: data.quantity,
-        quantityReserved: 0
-      }];
-    });
-    setMovements(prev => [newMovement, ...prev]);
-    setShowInbound(false);
+      // Refresh Data
+      const [invData, movData] = await Promise.all([
+        dataService.getInventory(),
+        dataService.getMovements()
+      ]);
+      setInventory(invData);
+      setMovements(movData);
+      setShowInbound(false);
+    } catch (e) {
+      console.error("Error creating inbound", e);
+      alert("Failed to process inbound. See console.");
+    }
   };
 
-  const handleOutboundSubmit = (data: any) => {
-    // Logic for outbound
-    const invItem = inventory.find(i => i.id === data.selectedInventoryId);
-    if (!invItem) return;
+  const handleOutboundSubmit = async (data: any) => {
+    try {
+      const invItem = inventory.find(i => i.id === data.selectedInventoryId);
+      if (!invItem) return;
 
-    const newMovement: StockMovement = {
-      id: `mov-${Date.now()}`,
-      date: new Date().toISOString(),
-      type: MovementType.OUT,
-      productId: invItem.productId,
-      productName: invItem.productName,
-      warehouseFromId: invItem.warehouseId,
-      quantity: data.quantity,
-      referenceDocId: data.soNumber,
-      user: 'Admin'
-    };
+      const newMovement = {
+        date: new Date().toISOString(),
+        type: MovementType.OUT,
+        product_id: invItem.productId,
+        product_name: invItem.productName,
+        warehouse_from_id: invItem.warehouseId,
+        quantity: Number(data.quantity),
+        reference_doc_id: data.soNumber,
+        unit_cost: 0
+      };
 
-    setInventory(prev => prev.map(item => {
-      if (item.id === data.selectedInventoryId) {
-        return { ...item, quantityOnHand: item.quantityOnHand - data.quantity };
-      }
-      return item;
-    }));
+      const inventoryUpdate = {
+        warehouse_id: invItem.warehouseId,
+        product_id: invItem.productId,
+        quantity: Number(data.quantity)
+      };
 
-    setMovements(prev => [newMovement, ...prev]);
-    setShowOutbound(false);
+      await dataService.createOutboundMovement(newMovement, [inventoryUpdate]);
+
+      // Refresh Data
+      const [invData, movData] = await Promise.all([
+        dataService.getInventory(),
+        dataService.getMovements()
+      ]);
+      setInventory(invData);
+      setMovements(movData);
+      setShowOutbound(false);
+    } catch (e) {
+      console.error("Error creating outbound", e);
+      alert("Failed to process outbound. See console.");
+    }
   };
 
   const handleInternalReqSubmit = () => setShowInternalReq(false);
