@@ -40,6 +40,10 @@ export enum EntityType {
   CLIENT = 'CLIENT'
 }
 
+export type BeneficiaryType = 'EXTERNAL_CLIENT' | 'DELIVERY_DRIVER' | 'COMPANY_EMPLOYEE' | 'INTERNAL';
+export type IssuePurpose = 'UNIFORM' | 'DELIVERY_BAG' | 'CONSUMABLE_CUSTODY' | 'CUSTODY';
+export type IssueRequestStatus = 'PENDING' | 'APPROVED' | 'ISSUED' | 'REJECTED';
+
 // Entity Interfaces
 
 export interface Warehouse {
@@ -54,6 +58,14 @@ export interface Department {
   name: string;
   costCenterCode: string;
   budgetCap: number;
+}
+
+export interface CompanyBranch {
+  id: number;
+  nameAr: string;
+  nameEn: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Location {
@@ -84,7 +96,11 @@ export interface Product {
   isSerialized: boolean;
   isBatchTracked: boolean;
   unit: string;
+  uomId?: string;
   expenseAccountCode?: string; // For consumables
+  warehouseId?: string; // Default Warehouse
+  vendorId?: string; // Preferred Vendor
+  departmentId?: string; // Default Department
 }
 
 export interface Batch {
@@ -93,6 +109,18 @@ export interface Batch {
   batchNumber: string;
   expiryDate: string;
   quantity: number;
+}
+
+export interface ProductSerial {
+  id: string;
+  productId: string;
+  serialNumber: string;
+  status: 'AVAILABLE' | 'SOLD' | 'RESERVED' | 'DAMAGED';
+  warehouseId?: string;
+  locationId?: string;
+  movementInId?: string;
+  movementOutId?: string;
+  createdAt: string;
 }
 
 export interface InventoryStock {
@@ -124,12 +152,14 @@ export interface StockMovement {
   clientId?: string; // Link to client for OUT movements
   unitCost?: number; // Cost per unit
   totalAmount?: number; // Total transaction amount
+  createdAt?: string;
 }
 
 // Financial Interfaces
 
 export interface Vendor {
   id: string;
+  vendorCode: string; // Added to match DB
   name: string;
   contactPerson: string;
   phone: string;
@@ -145,6 +175,7 @@ export interface Vendor {
 
 export interface Client {
   id: string;
+  clientCode: string; // Added to match DB
   name: string;
   contactPerson: string;
   phone: string;
@@ -154,6 +185,86 @@ export interface Client {
   currentBalance: number; // Amount they owe us
   creditLimit: number;
   isActive: boolean;
+}
+
+export interface Beneficiary {
+  id: string;
+  beneficiaryCode: string;
+  type: BeneficiaryType;
+  name: string;
+  phone?: string;
+  departmentId?: string;
+  departmentName?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StockIssueRequest {
+  id: string;
+  requestCode: string;
+  beneficiaryId: string;
+  beneficiaryName?: string;
+  beneficiaryType: BeneficiaryType;
+  departmentId?: string;
+  productId: string;
+  productName?: string;
+  quantity: number;
+  purpose: IssuePurpose;
+  status: IssueRequestStatus;
+  notes?: string;
+  requestedBy?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  issuedAt?: string;
+  receiverEmployeeName?: string;
+  issuedMovementId?: string;
+  createdAt: string;
+  updatedAt: string;
+  // Stock Snapshot fields
+  quantityOnHand?: number;
+  quantityReserved?: number;
+  availableQuantity?: number;
+}
+
+export type PurchaseOrderStatus =
+  | 'DRAFT'
+  | 'APPROVED'
+  | 'PARTIALLY_RECEIVED'
+  | 'RECEIVED'
+  | 'CANCELLED';
+
+export interface PurchaseOrderItem {
+  id: string;
+  purchaseOrderId: string;
+  productId: string;
+  productName?: string;
+  sku?: string;
+  orderedQty: number;
+  receivedQty: number;
+  unitCost: number;
+  warehouseId?: string;
+  warehouseName?: string;
+  lineTotal: number;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  poNumber: string;
+  vendorId: string;
+  vendorName?: string;
+  orderDate: string;
+  expectedDate?: string;
+  status: PurchaseOrderStatus;
+  notes?: string;
+  totalAmount: number;
+  approvedBy?: string;
+  approvedAt?: string;
+  receivedAt?: string;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+  items: PurchaseOrderItem[];
 }
 
 export interface FinancialTransaction {
@@ -183,6 +294,36 @@ export interface CollectionAlert {
   currentBalance: number;
 }
 
+// --- Delivery Bags (Refactored) ---
+export type BagStatus = 'AVAILABLE' | 'ISSUED' | 'SOLD' | 'RESERVED' | 'DAMAGED' | 'LOST'; // Matches serial_status_enum + UI logic
+export type BagEventType = 'SUPPLY_TO_WAREHOUSE' | 'ISSUE_TO_DRIVER' | 'RECEIVE_FROM_DRIVER' | 'RECEIVE_AND_ISSUE' | 'STATUS_CHANGE';
+
+export interface DeliveryBag {
+  serialId: string;
+  bagNo: string; // serial_number
+  productName: string;
+  branchName?: string;
+  status: BagStatus;
+  suppliedAt?: string;
+  issuedAt?: string;
+  currentDriverId?: string;
+  driverName?: string;
+  isIssued: boolean;
+  // Extra fields for UI if needed
+  createdAt?: string;
+}
+
+export interface BagEvent {
+  // Uses stock_movements now, but we can map it
+  id: string; // movement id
+  bagNo: string;
+  type: 'IN' | 'OUT' | 'TRANSFER';
+  date: string;
+  beneficiaryName?: string; // driver
+  userName?: string; // performed by
+  notes?: string;
+}
+
 // UI State Management
 export type MainMenu =
   | 'dashboard'
@@ -194,6 +335,7 @@ export type MainMenu =
   | 'internal_req'
   | 'inventory'
   | 'financial'
+  | 'delivery_bags'
   | 'reports'
   | 'admin';
 
@@ -211,4 +353,132 @@ export interface Task {
   status: 'pending' | 'completed';
   dueDate: string;
   priority: 'low' | 'medium' | 'high';
+}
+
+// ============================================
+// PERMISSIONS SYSTEM TYPES
+// ============================================
+
+export interface Module {
+  id: string;
+  name: string;
+  displayName: string;
+  displayNameEn?: string;
+  icon?: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface Action {
+  id: string;
+  name: string;
+  displayName: string;
+  displayNameEn?: string;
+  sortOrder: number;
+  createdAt: string;
+}
+
+export interface ModuleAction {
+  moduleId: string;
+  actionId: string;
+  isAvailable: boolean;
+  createdAt: string;
+}
+
+export interface Role {
+  id: string;
+  name: string;
+  displayName: string;
+  description?: string;
+  isSystemRole: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RolePermission {
+  roleId: string;
+  moduleId: string;
+  actionId: string;
+  hasPermission: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  roleId: string;
+  roleName?: string; // Joined from role
+  roleDisplayName?: string; // Joined from role
+  isActive: boolean;
+  lastLogin?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserPermission {
+  userId: string;
+  moduleId: string;
+  actionId: string;
+  hasPermission: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Combined permission data for UI
+export interface PermissionMatrix {
+  moduleId: string;
+  moduleName: string;
+  moduleDisplayName: string;
+  actionId: string;
+  actionName: string;
+  actionDisplayName: string;
+  hasPermission: boolean;
+  source: 'role' | 'user'; // Where permission comes from
+  isDirect?: boolean; // True if user-specific override exists
+}
+
+// For the permissions grid/table
+export interface PermissionGridRow {
+  moduleId: string;
+  moduleName: string;
+  moduleDisplayName: string;
+  moduleIcon?: string;
+  permissions: {
+    [actionName: string]: {
+      actionId: string;
+      hasPermission: boolean;
+      isAvailable: boolean; // From module_actions
+      source?: 'role' | 'user';
+    };
+  };
+}
+
+// API request/response types
+export interface UpdateRolePermissionsRequest {
+  roleId: string;
+  permissions: {
+    moduleId: string;
+    actionId: string;
+    hasPermission: boolean;
+  }[];
+}
+
+export interface UpdateUserPermissionsRequest {
+  userId: string;
+  permissions: {
+    moduleId: string;
+    actionId: string;
+    hasPermission: boolean;
+  }[];
+}
+
+export interface UserPermissionsResponse {
+  user: User;
+  role: Role;
+  effectivePermissions: PermissionMatrix[];
+  directOverrides: UserPermission[];
 }

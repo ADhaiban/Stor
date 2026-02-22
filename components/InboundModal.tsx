@@ -1,21 +1,27 @@
 import React, { useState } from 'react';
 import { X, Calculator, ArrowLeft, CheckCircle } from 'lucide-react';
-import { warehouses } from '../mockData'; // Keeping warehouses from mock for now if not passed
-import { InventoryStock, Product } from '../types';
+import { InventoryStock, Product, Warehouse, Vendor } from '../types';
 
 interface InboundModalProps {
   onClose: () => void;
   onSubmit: (data: any) => void;
   inventory: InventoryStock[];
   products: Product[];
+  warehouses: Warehouse[];
+  vendors: Vendor[];
 }
 
-const InboundModal: React.FC<InboundModalProps> = ({ onClose, onSubmit, inventory, products }) => {
+const InboundModal: React.FC<InboundModalProps> = ({ onClose, onSubmit, inventory, products, warehouses, vendors }) => {
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>(warehouses[0]?.id || '');
+  const [selectedVendor, setSelectedVendor] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(0);
   const [unitCost, setUnitCost] = useState<number>(0);
   const [poNumber, setPoNumber] = useState('');
+
+  // Serialization states
+  // Serialization states
+  const [serialStart, setSerialStart] = useState<number>(1001);
 
   const productData = products.find(p => p.id === selectedProduct);
   const stockItem = inventory.find(i => i.productId === selectedProduct && i.warehouseId === selectedWarehouse);
@@ -30,7 +36,19 @@ const InboundModal: React.FC<InboundModalProps> = ({ onClose, onSubmit, inventor
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ selectedProduct, selectedWarehouse, quantity, unitCost, poNumber });
+    onSubmit({
+      selectedProduct,
+      selectedWarehouse,
+      selectedVendor,
+      quantity,
+      unitCost,
+      poNumber,
+      serialization: productData?.isSerialized ? {
+        prefix: '',
+        startNumber: serialStart,
+        suffix: ''
+      } : null
+    });
     onClose();
   };
 
@@ -49,8 +67,23 @@ const InboundModal: React.FC<InboundModalProps> = ({ onClose, onSubmit, inventor
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="grid grid-cols-2 gap-6">
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">رقم أمر الشراء المرجعي</label>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">المورد</label>
+              <select
+                className="w-full px-4 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                value={selectedVendor}
+                onChange={e => setSelectedVendor(e.target.value)}
+                required
+              >
+                <option value="">اختر المورد...</option>
+                {vendors.map(v => (
+                  <option key={v.id} value={v.id}>{v.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">رقم أمر الشراء (PO)</label>
               <input
                 type="text"
                 required
@@ -140,6 +173,43 @@ const InboundModal: React.FC<InboundModalProps> = ({ onClose, onSubmit, inventor
               <p className="text-xs text-blue-600/70 mt-3 italic">
                 * بناءً على تقدير المخزون الحالي بـ {currentQty} وحدة. يتم الحساب النهائي عند الحفظ في قاعدة البيانات.
               </p>
+            </div>
+          )}
+
+          {/* Serialization Section */}
+          {productData?.isSerialized && quantity > 0 && (
+            <div className="bg-amber-50 rounded-xl p-4 border border-amber-100 animate-in slide-in-from-top-2 duration-300">
+              <div className="flex items-center gap-2 mb-3 text-amber-800">
+                <CheckCircle size={18} className="text-amber-600" />
+                <h4 className="font-bold text-sm">توليد أرقام تسلسلية (Sequential Generation)</h4>
+              </div>
+              <p className="text-xs text-amber-700 mb-4">
+                سيقوم النظام بتوليد {quantity} رقم متسلسل تلقائياً بناءً على النمط أدناه:
+              </p>
+
+              <div className="col-span-3">
+                <label className="block text-sm font-medium text-amber-700 mb-1">الرقم التسلسلي الأول (أرقام فقط)</label>
+                <input
+                  type="number"
+                  className="w-full px-4 py-2 bg-white border border-amber-300 rounded-lg text-lg font-mono outline-none focus:ring-2 focus:ring-amber-500"
+                  placeholder="1001"
+                  value={serialStart}
+                  onChange={e => setSerialStart(parseInt(e.target.value.replace(/\D/g, '')) || 0)}
+                />
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-amber-200">
+                <p className="text-[10px] text-amber-600 mb-1 font-bold">معاينة النمط:</p>
+                <div className="flex flex-wrap gap-2">
+                  <span className="px-3 py-1 bg-amber-200 text-amber-900 rounded-lg text-sm font-mono font-bold">
+                    {serialStart}
+                  </span>
+                  <span className="text-amber-400">....</span>
+                  <span className="px-3 py-1 bg-amber-200 text-amber-900 rounded-lg text-sm font-mono font-bold">
+                    {serialStart + quantity - 1}
+                  </span>
+                </div>
+              </div>
             </div>
           )}
 

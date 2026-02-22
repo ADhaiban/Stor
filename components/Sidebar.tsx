@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   LayoutDashboard,
   Database,
@@ -13,7 +13,8 @@ import {
   Warehouse,
   Users,
   Store,
-  DollarSign
+  DollarSign,
+  Briefcase
 } from 'lucide-react';
 import { MainMenu } from '../types';
 
@@ -21,6 +22,7 @@ interface SidebarProps {
   currentMenu: MainMenu;
   currentSubMenu: string | null;
   onNavigate: (menu: MainMenu, subMenu: string | null) => void;
+  hasPermission: (moduleName: string, actionName: string) => boolean;
 }
 
 interface MenuItem {
@@ -28,10 +30,10 @@ interface MenuItem {
   label: string;
   icon: React.ElementType;
   subMenus: { id: string; label: string }[];
+  moduleName?: string;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentMenu, currentSubMenu, onNavigate }) => {
-  // State to track which menu is expanded
+const Sidebar: React.FC<SidebarProps> = ({ currentMenu, currentSubMenu, onNavigate, hasPermission }) => {
   const [expanded, setExpanded] = useState<MainMenu | null>('dashboard');
 
   const menuStructure: MenuItem[] = [
@@ -39,9 +41,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentMenu, currentSubMenu, onNaviga
       id: 'dashboard',
       label: 'لوحة المعلومات',
       icon: LayoutDashboard,
+      moduleName: 'dashboard',
       subMenus: [
         { id: 'overview', label: 'نظرة عامة' },
-        { id: 'alerts', label: 'تنبيهات المخزون' },
+        { id: 'alerts', label: 'تنبيهات نقص المخزون' },
         { id: 'pending', label: 'مهام معلقة' }
       ]
     },
@@ -49,6 +52,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentMenu, currentSubMenu, onNaviga
       id: 'master_data',
       label: 'البيانات الأساسية',
       icon: Database,
+      moduleName: 'products',
       subMenus: [
         { id: 'items', label: 'تعريف الأصناف' },
         { id: 'categories', label: 'فئات الأصناف' },
@@ -61,6 +65,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentMenu, currentSubMenu, onNaviga
       id: 'vendors',
       label: 'إدارة الموردين',
       icon: Users,
+      moduleName: 'vendors',
       subMenus: [
         { id: 'list', label: 'قائمة الموردين' },
         { id: 'payables', label: 'حسابات دائنة' },
@@ -71,6 +76,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentMenu, currentSubMenu, onNaviga
       id: 'clients',
       label: 'إدارة العملاء',
       icon: Store,
+      moduleName: 'clients',
       subMenus: [
         { id: 'list', label: 'قائمة العملاء' },
         { id: 'receivables', label: 'حسابات مدينة' },
@@ -81,9 +87,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentMenu, currentSubMenu, onNaviga
       id: 'inbound',
       label: 'المشتريات والاستلام',
       icon: Download,
+      moduleName: 'purchase_orders',
       subMenus: [
         { id: 'po', label: 'طلبات الشراء' },
         { id: 'grn', label: 'إذن استلام مخزني' },
+        { id: 'grn_approval', label: 'موافقة على إذن استلام' },
         { id: 'quality', label: 'فحص الجودة' },
         { id: 'returns_vendor', label: 'مرتجع لمورد' }
       ]
@@ -92,10 +100,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentMenu, currentSubMenu, onNaviga
       id: 'outbound',
       label: 'المبيعات والصرف',
       icon: Upload,
+      moduleName: 'sales_orders',
       subMenus: [
         { id: 'so', label: 'أوامر البيع' },
         { id: 'picking', label: 'أوامر التحضير' },
         { id: 'dispatch', label: 'إذن صرف بضاعة' },
+        { id: 'delivery_note', label: 'إذن تسليم بضاعة' },
+        { id: 'custody_issue', label: 'صرف عهدة خارجية' },
         { id: 'returns_customer', label: 'مرتجع من عميل' }
       ]
     },
@@ -103,6 +114,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentMenu, currentSubMenu, onNaviga
       id: 'internal_req',
       label: 'الطلبات الداخلية',
       icon: ClipboardList,
+      moduleName: 'inventory',
       subMenus: [
         { id: 'new_req', label: 'طلب صرف مواد' },
         { id: 'approvals', label: 'الموافقة على الطلبات' },
@@ -114,6 +126,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentMenu, currentSubMenu, onNaviga
       id: 'inventory',
       label: 'إدارة المخزون',
       icon: Box,
+      moduleName: 'inventory',
       subMenus: [
         { id: 'transfers', label: 'التحويل بين المخازن' },
         { id: 'adjustments', label: 'التسويات المخزنية' },
@@ -122,9 +135,21 @@ const Sidebar: React.FC<SidebarProps> = ({ currentMenu, currentSubMenu, onNaviga
       ]
     },
     {
+      id: 'delivery_bags',
+      label: 'صرف للموصل / عهدة',
+      icon: Briefcase,
+      moduleName: 'delivery_bags',
+      subMenus: [
+        { id: 'report', label: 'تقرير عهد الشنط' },
+        { id: 'ledger', label: 'سجل انتقال العهدة' },
+        { id: 'custody', label: 'تقرير عهدة الموصلين' }
+      ]
+    },
+    {
       id: 'financial',
       label: 'التقارير المالية',
       icon: DollarSign,
+      moduleName: 'reports',
       subMenus: [
         { id: 'dashboard', label: 'لوحة المالية' },
         { id: 'aging', label: 'تحليل أعمار الديون' },
@@ -135,6 +160,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentMenu, currentSubMenu, onNaviga
       id: 'reports',
       label: 'التقارير والتحليلات',
       icon: BarChart2,
+      moduleName: 'reports',
       subMenus: [
         { id: 'stock_balance', label: 'تقرير أرصدة المخزون' },
         { id: 'item_ledger', label: 'كارت الصنف' },
@@ -146,13 +172,20 @@ const Sidebar: React.FC<SidebarProps> = ({ currentMenu, currentSubMenu, onNaviga
       id: 'admin',
       label: 'الإعدادات والصلاحيات',
       icon: Settings,
+      moduleName: 'users',
       subMenus: [
         { id: 'users', label: 'إدارة المستخدمين' },
+        { id: 'branches', label: 'إدارة الفروع' },
         { id: 'audit', label: 'سجل الرقابة' },
         { id: 'config', label: 'إعدادات النظام' }
       ]
     }
   ];
+
+  const filteredMenu = menuStructure.filter(item => {
+    if (!item.moduleName) return true;
+    return hasPermission(item.moduleName, 'view');
+  });
 
   const toggleExpand = (id: MainMenu) => {
     setExpanded(expanded === id ? null : id);
@@ -172,7 +205,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentMenu, currentSubMenu, onNaviga
 
       <nav className="flex-1 overflow-y-auto py-4 custom-scrollbar">
         <ul className="space-y-1 px-3">
-          {menuStructure.map((item) => {
+          {filteredMenu.map((item) => {
             const Icon = item.icon;
             const isExpanded = expanded === item.id;
             const isActive = currentMenu === item.id;
@@ -182,10 +215,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentMenu, currentSubMenu, onNaviga
                 <button
                   onClick={() => toggleExpand(item.id)}
                   className={`w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group
-                    ${isActive
-                      ? 'bg-slate-800 text-white'
-                      : 'hover:bg-slate-800/50 hover:text-white'
-                    }`}
+                    ${isActive ? 'bg-slate-800 text-white' : 'hover:bg-slate-800/50 hover:text-white'}`}
                 >
                   <div className="flex items-center gap-3">
                     <Icon size={18} className={`${isActive ? 'text-blue-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
@@ -198,21 +228,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentMenu, currentSubMenu, onNaviga
                   )}
                 </button>
 
-                {/* Sub Menu */}
-                <div
-                  className={`overflow-hidden transition-all duration-300 ease-in-out
-                    ${isExpanded ? 'max-h-96 opacity-100 mt-1' : 'max-h-0 opacity-0'}`}
-                >
+                <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-96 opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
                   <ul className="pr-9 pl-2 space-y-0.5 border-r border-slate-700/50 mr-5 my-1">
                     {item.subMenus.map((sub) => (
                       <li key={sub.id}>
                         <button
                           onClick={() => onNavigate(item.id, sub.id)}
                           className={`w-full text-right px-3 py-2 text-xs rounded-md transition-colors block
-                            ${currentSubMenu === sub.id
-                              ? 'text-blue-400 bg-blue-500/10 font-medium'
-                              : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-                            }`}
+                            ${currentSubMenu === sub.id ? 'text-blue-400 bg-blue-500/10 font-medium' : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
                         >
                           {sub.label}
                         </button>
@@ -242,3 +265,5 @@ const Sidebar: React.FC<SidebarProps> = ({ currentMenu, currentSubMenu, onNaviga
 };
 
 export default Sidebar;
+
+

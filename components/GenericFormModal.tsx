@@ -15,10 +15,24 @@ interface GenericFormModalProps {
     fields: FieldConfig[];
     onClose: () => void;
     onSubmit: (data: Record<string, string>) => void;
+    initialData?: Record<string, any>;
+    errors?: Record<string, string>;
+    isSubmitting?: boolean;
 }
 
-const GenericFormModal: React.FC<GenericFormModalProps> = ({ title, fields, onClose, onSubmit }) => {
+const GenericFormModal: React.FC<GenericFormModalProps> = ({ title, fields, onClose, onSubmit, initialData = {}, errors = {}, isSubmitting = false }) => {
     const [formData, setFormData] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        if (initialData) {
+            // Convert all values to strings for the form
+            const stringData: Record<string, string> = {};
+            Object.entries(initialData).forEach(([key, val]) => {
+                stringData[key] = String(val ?? '');
+            });
+            setFormData(stringData);
+        }
+    }, [JSON.stringify(initialData)]);
 
     const handleChange = (name: string, value: string) => {
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -50,7 +64,8 @@ const GenericFormModal: React.FC<GenericFormModalProps> = ({ title, fields, onCl
                                     required={field.required}
                                     value={formData[field.name] || ''}
                                     onChange={(e) => handleChange(field.name, e.target.value)}
-                                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                                    className={`w-full px-3 py-2 bg-white border rounded-lg focus:ring-2 outline-none text-sm transition-all
+                                        ${errors[field.name] ? 'border-red-300 focus:ring-red-200 focus:border-red-400' : 'border-slate-300 focus:ring-blue-500 focus:border-blue-500'}`}
                                 >
                                     <option value="" disabled>اختر...</option>
                                     {field.options?.map(opt => (
@@ -64,9 +79,11 @@ const GenericFormModal: React.FC<GenericFormModalProps> = ({ title, fields, onCl
                                     placeholder={field.placeholder}
                                     value={formData[field.name] || ''}
                                     onChange={(e) => handleChange(field.name, e.target.value)}
-                                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                                    className={`w-full px-3 py-2 bg-white border rounded-lg focus:ring-2 outline-none text-sm transition-all
+                                        ${errors[field.name] ? 'border-red-300 focus:ring-red-200 focus:border-red-400' : 'border-slate-300 focus:ring-blue-500 focus:border-blue-500'}`}
                                 />
                             )}
+                            {errors[field.name] && <p className="text-xs text-red-500 mt-1 font-medium">{errors[field.name]}</p>}
                         </div>
                     ))}
 
@@ -86,6 +103,7 @@ const GenericFormModal: React.FC<GenericFormModalProps> = ({ title, fields, onCl
                             حفظ
                         </button>
                     </div>
+                    {isSubmitting && <p className="text-center text-xs text-slate-400 mt-2 font-medium animate-pulse">جاري الحفظ...</p>}
                 </form>
             </div>
         </div>

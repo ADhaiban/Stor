@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { X, CheckCircle, Building2, AlertTriangle, Calculator } from 'lucide-react';
-import { products, departments, inventory as mockInventory } from '../mockData';
-import { ProductType, InventoryStock } from '../types';
+import { ProductType, InventoryStock, Product, Department } from '../types';
 
 interface InternalRequisitionModalProps {
   onClose: () => void;
   onSubmit: (data: any) => void;
   inventory: InventoryStock[];
+  products: Product[];
+  departments: Department[];
 }
 
-const InternalRequisitionModal: React.FC<InternalRequisitionModalProps> = ({ onClose, onSubmit, inventory }) => {
+const InternalRequisitionModal: React.FC<InternalRequisitionModalProps> = ({ onClose, onSubmit, inventory, products, departments }) => {
   const [departmentId, setDepartmentId] = useState('');
   const [selectedProduct, setSelectedProduct] = useState('');
   const [quantity, setQuantity] = useState(0);

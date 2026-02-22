@@ -45,6 +45,7 @@ CREATE TABLE products (
     is_batch_tracked BOOLEAN DEFAULT FALSE,
     expense_account_code VARCHAR(100), -- Linked to General Ledger for CONSUMABLES
     current_wac_cost DECIMAL(15, 4) DEFAULT 0.0000, -- Weighted Average Cost
+    unit VARCHAR(50) DEFAULT 'unit',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

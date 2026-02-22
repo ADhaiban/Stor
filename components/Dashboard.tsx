@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { formatLongDateTime } from '../utils/dateFormat';
 import {
   TrendingUp,
   Package,
@@ -227,7 +228,7 @@ const Dashboard: React.FC<DashboardProps> = ({ movements, inventory, products, t
                   <td className="px-6 py-4 font-mono text-slate-600">{mov.referenceDocId}</td>
                   <td className="px-6 py-4 font-medium text-slate-900">{mov.productName}</td>
                   <td className="px-6 py-4">{mov.quantity}</td>
-                  <td className="px-6 py-4 text-slate-500">{new Date(mov.date).toLocaleDateString('ar-SA')}</td>
+                  <td className="px-6 py-4 text-slate-500">{formatLongDateTime(mov.date)}</td>
                 </tr>
               ))}
               {movements.length === 0 && (

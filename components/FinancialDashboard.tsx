@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { TrendingUp, TrendingDown, AlertCircle, Calendar, DollarSign } from 'lucide-react';
 import { FinancialTransaction, Vendor, Client, EntityType, CollectionAlert } from '../types';
+import { formatLongDateTime } from '../utils/dateFormat';
 
 interface FinancialDashboardProps {
     vendors: Vendor[];
@@ -141,11 +142,11 @@ const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vendors, client
                                     <tr key={alert.id} className="hover:bg-slate-50">
                                         <td className="px-4 py-3 font-medium">{alert.clientName}</td>
                                         <td className="px-4 py-3 font-mono text-xs">{alert.invoiceId}</td>
-                                        <td className="px-4 py-3">{new Date(alert.dueDate).toLocaleDateString('ar-SA')}</td>
+                                        <td className="px-4 py-3">{formatLongDateTime(alert.dueDate)}</td>
                                         <td className="px-4 py-3">
                                             <span className={`px-2 py-1 rounded text-xs font-bold ${alert.daysOverdue > 60 ? 'bg-red-100 text-red-700' :
-                                                    alert.daysOverdue > 30 ? 'bg-orange-100 text-orange-700' :
-                                                        'bg-yellow-100 text-yellow-700'
+                                                alert.daysOverdue > 30 ? 'bg-orange-100 text-orange-700' :
+                                                    'bg-yellow-100 text-yellow-700'
                                                 }`}>
                                                 {alert.daysOverdue} يوم
                                             </span>
@@ -239,11 +240,11 @@ const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vendors, client
                             <tbody className="divide-y divide-slate-200">
                                 {getSOA(selectedEntity.type, selectedEntity.id).map(txn => (
                                     <tr key={txn.id} className="hover:bg-slate-50">
-                                        <td className="px-4 py-3">{new Date(txn.transactionDate).toLocaleDateString('ar-SA')}</td>
+                                        <td className="px-4 py-3">{formatLongDateTime(txn.transactionDate)}</td>
                                         <td className="px-4 py-3">
                                             <span className={`px-2 py-1 rounded text-xs ${txn.type === 'INVOICE' ? 'bg-blue-100 text-blue-700' :
-                                                    txn.type === 'PAYMENT' ? 'bg-green-100 text-green-700' :
-                                                        'bg-gray-100 text-gray-700'
+                                                txn.type === 'PAYMENT' ? 'bg-green-100 text-green-700' :
+                                                    'bg-gray-100 text-gray-700'
                                                 }`}>
                                                 {txn.type}
                                             </span>
