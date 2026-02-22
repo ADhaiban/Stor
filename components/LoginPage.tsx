@@ -37,7 +37,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     await permissionService.updateUserLastLogin(userId);
                     onLogin(userId, userName);
                 } else {
-                    setError('بيانات الدخول غير صحيحة. يرجى محاولة البريد: admin@tawseel.com وكلمة المرور: 123');
+                    setError('بيانات الدخول غير صحيحة. يرجى التأكد من البريد الإلكتروني وكلمة المرور.');
                 }
                 setLoading(false);
             }, 1000);
